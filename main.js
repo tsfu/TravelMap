@@ -288,6 +288,10 @@ function openTab(event, tabName) {
 
   // Add active state to the clicked tab link
   event.currentTarget.classList.add("active");
+
+  if (tabName === "radar-view" && typeof window.initRadarTab === "function") {
+    window.initRadarTab();
+  }
 }
 
 // load airport info into map

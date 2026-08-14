@@ -1,0 +1,504 @@
+/* ============================================================
+   Radar tab styles
+   ============================================================ */
+
+:root {
+    --radar-control-height: 36px;
+}
+
+#radar-view {
+    margin: 0;
+    height: calc(100vh - 50px);
+}
+
+/* --- Layout grid --- */
+
+#radarLayout {
+    display: grid;
+    grid-template-columns: 1fr 0;
+    grid-template-rows: minmax(0, 1fr);
+    height: 100%;
+    width: 100%;
+    position: relative;
+    transition: grid-template-columns 0.35s ease;
+}
+
+#radarLayout.radar-show-cards {
+    grid-template-columns: 70% 30%;
+}
+
+#radarLayout.radar-screensaver {
+    grid-template-columns: 0 1fr;
+}
+
+/* --- Map panel --- */
+
+#radarMapPanel {
+    position: relative;
+    background: #dceff3;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+#radarMap {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+}
+
+#radarLayout.radar-screensaver #radarMapPanel {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* --- Toolbar (scan + status) --- */
+
+#radarToolbar {
+    position: absolute;
+    left: 50%;
+    top: 14px;
+    transform: translateX(-50%);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(7, 27, 38, 0.88);
+    border-radius: 14px;
+    padding: 8px 12px;
+    color: #eef9ff;
+}
+
+#radarScanButton,
+#radarLocateButton {
+    background: #f49f0a;
+    color: #1f2630;
+    font-weight: 700;
+    height: var(--radar-control-height);
+    padding: 0 16px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+#radarStatus {
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+#radarStatus.info  { color: #abf2da; }
+#radarStatus.warn  { color: #ffe5aa; }
+#radarStatus.error { color: #ffb3bc; }
+
+/* --- Floating locate + range controls --- */
+
+#radarFloatingControls {
+    position: absolute;
+    right: 14px;
+    top: 14px;
+    z-index: 520;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 14px;
+    padding: 8px 12px;
+}
+
+#radarFloatingControls #radarRangeRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f49f0a;
+    color: #1f2630;
+    border-radius: 8px;
+    height: var(--radar-control-height);
+    padding: 0 12px;
+    box-sizing: border-box;
+}
+
+#radarFloatingControls #radarRangeRow label {
+    color: #1f2630;
+    font-weight: 700;
+    margin: 0;
+}
+
+#radarFloatingControls #radarRangeInput {
+    width: 140px;
+    accent-color: #1f2630;
+    margin: 0;
+}
+
+#radarRangeLabel {
+    min-width: 64px;
+    font-weight: 700;
+    color: #1f2630;
+    font-size: 13px;
+}
+
+/* --- Show Map prompt button (screensaver only) --- */
+
+#radarShowMapButton {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translate(-110%, -50%);
+    display: inline-flex;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    z-index: 650;
+    height: var(--radar-control-height);
+    padding: 0 14px;
+    border: 1px solid #f49f0a;
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    background: #000000;
+    color: #f49f0a;
+    font-family: "VT323", "Courier New", monospace;
+    font-size: 24px;
+    letter-spacing: 1px;
+    transition: transform 0.25s ease, opacity 0.25s ease, visibility 0s linear 0.25s;
+}
+
+#radarLayout.radar-screensaver.radar-show-map-prompt #radarShowMapButton {
+    transform: translate(0, -50%);
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    transition: transform 0.25s ease, opacity 0.25s ease, visibility 0s linear 0s;
+}
+
+/* --- Cards sidebar --- */
+
+#radarSidebar {
+    border-left: 1px solid #d3d3d3;
+    background: #f6fbfd;
+    padding: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    position: relative;
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: padding 0.35s ease;
+}
+
+#radarLayout.radar-show-cards #radarSidebar {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+}
+
+#radarLayout.radar-screensaver #radarSidebar {
+    grid-column: 1 / -1;
+    border-left: none;
+    padding: 20px;
+    background: #000000;
+    color: #ffffff;
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+}
+
+#radarLayout.radar-screensaver #radarCards {
+    margin-top: 0;
+    padding-right: 0;
+    height: 100%;
+}
+
+#radarLayout.radar-screensaver .radar-slideshow-card {
+    min-height: 100%;
+}
+
+#radarCards {
+    margin-top: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 3px;
+}
+
+/* --- Normal flight cards (sidebar list) --- */
+
+.radar-empty {
+    color: #5f7179;
+    font-size: 14px;
+}
+
+.radar-card {
+    background: #ffffff;
+    border: 1px solid #d5e6eb;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(11, 41, 56, 0.08);
+}
+
+.radar-card:hover {
+    border-color: #7fb4c6;
+    transform: translateY(-1px);
+}
+
+.radar-card-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.radar-card h3 {
+    margin: 0;
+    font-size: 15px;
+    color: #183643;
+}
+
+.radar-airline-name {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: #5a6e77;
+}
+
+.radar-airline-logo {
+    width: 56px;
+    height: 24px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid #e5ecef;
+    border-radius: 4px;
+}
+
+.radar-airline-badge {
+    width: 56px;
+    height: 24px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #d9ebef;
+    color: #2a4c58;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.radar-metrics {
+    margin-top: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 8px;
+    font-size: 12px;
+    color: #4f636d;
+}
+
+.radar-route-row {
+    grid-column: 1 / span 2;
+}
+
+/* --- Screensaver slideshow wrapper --- */
+
+.radar-slideshow-card {
+    position: relative;
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 14px;
+    box-sizing: border-box;
+}
+
+.radar-slideshow-progress {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    font-size: 24px;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 16px;
+    padding: 4px 10px;
+    font-family: "VT323", "Courier New", monospace;
+    letter-spacing: 2px;
+}
+
+/* --- 16:9 LED screensaver card --- */
+
+.radar-led-card {
+    width: min(92vw, calc((100vh - 100px) * 16 / 9));
+    aspect-ratio: 16 / 9;
+    background: #000000;
+    color: #ffffff;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.08), inset 0 0 30px rgba(255, 255, 255, 0.03);
+    font-family: "VT323", "Courier New", monospace;
+    letter-spacing: 1px;
+    display: flex;
+    flex-direction: column;
+    animation: radarCardFade 0.35s ease;
+    cursor: pointer;
+}
+
+.radar-led-upper {
+    flex: 3;
+    display: flex;
+    min-height: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.radar-led-logo-col {
+    width: 33.33%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.radar-led-logo-col .radar-airline-logo {
+    width: 90%;
+    height: 82%;
+    object-fit: contain;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+}
+
+.radar-led-logo-col .radar-airline-badge {
+    width: 90%;
+    aspect-ratio: 3 / 1;
+    background: #111111;
+    color: #f49f0a;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(24px, 7vh, 72px);
+    font-weight: 700;
+}
+
+.radar-led-info-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px 20px;
+    gap: 6px;
+    min-width: 0;
+}
+
+.radar-led-callsign {
+    font-size: clamp(34px, 14vh, 120px);
+    color: #ffffff;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+    line-height: 1.05;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.radar-led-route {
+    font-size: clamp(34px, 14vh, 120px);
+    color: #f49f0a;
+    line-height: 1.05;
+}
+
+.radar-led-aircraft {
+    font-size: clamp(34px, 14vh, 120px);
+    color: #ffffff;
+    line-height: 1.05;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.radar-led-lower {
+    flex: 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-content: center;
+    padding: 6px 20px 6px 48px;
+    gap: 2px 16px;
+}
+
+.radar-led-metric {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: clamp(34px, 16vh, 132px);
+    line-height: 1.05;
+}
+
+.radar-led-metric span {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 0.72em;
+    letter-spacing: 2px;
+}
+
+.radar-led-metric b {
+    color: #ffffff;
+    font-weight: 400;
+}
+
+@keyframes radarCardFade {
+    from {
+        opacity: 0.2;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- Responsive (narrow screens) --- */
+
+@media (max-width: 1100px) {
+    #radarLayout {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 0;
+    }
+
+    #radarLayout.radar-show-cards {
+        grid-template-columns: 1fr;
+        grid-template-rows: 56vh 44vh;
+    }
+
+    #radarLayout.radar-show-cards.radar-screensaver {
+        grid-template-rows: minmax(0, 1fr);
+    }
+
+    #radarSidebar {
+        border-left: none;
+        border-top: 1px solid #d3d3d3;
+    }
+
+    #radarStatus {
+        max-width: 50vw;
+        white-space: normal;
+    }
+
+    #radarFloatingControls {
+        top: 58px;
+        right: 10px;
+        gap: 8px;
+    }
+
+    #radarFloatingControls #radarRangeInput {
+        width: 110px;
+    }
+
+    #radarFloatingControls #radarRangeRow {
+        padding: 5px 8px;
+    }
+
+    .radar-slideshow-card {
+        min-height: auto;
+    }
+}
