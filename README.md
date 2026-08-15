@@ -7,6 +7,7 @@
   - [Trips](#trips)
     - [Find My Flight (auto-fill from flight number)](#find-my-flight-auto-fill-from-flight-number)
   - [Stats](#stats)
+  - [Radar](#radar)
 - [Data](#data)
   - [Data Source](#data-source)
   - [Data Model](#data-model)
@@ -37,10 +38,11 @@ To test the app locally, you may use `git clone` to grab the code, then:
  - Open terminal and run ` http-server .` to start local server.
  - Go to the prompted address in your browser to view the project site.
 
-There are 3 UI tabs for this app:
+There are 4 UI tabs for this app:
 - Globe (3D earth view): Uses `CesiumJS` to visualize the routes of a user's past trips on 3D earth.
 - Trips (log view): A table that holds all user input (display travel data and serve as data source). Using different buttons on this page, you can view(including search and sort), add, edit, and import/export trips.
 - Stats: Get some fun rankings and aggregation display from your added travel data.
+- Radar: Live nearby aircraft radar powered by ADS-B. See flights around your location in real time.
 
 ### Globe
 This is made possible by  `CesiumJS` library and ChatGPT JS coding. For every trip you logged, it will draw an estimated flight route on earth, and mark departure/arrival info. When you edit/delete a trip record, the route changes accordingly. The loading of Cesium graphics may be lagging sometimes due to networks.
@@ -104,6 +106,13 @@ Some useful stats for user's travel history. Rankings, collections, aggregations
 Since the IATAs and departure/arrival times are required and validated, the related statistics like distance, duration, countries and airports will always be valid as well. However, the missing or invalid aircrafts and airlines, since they are lax and optional, will not accumulate. They will count only once in rankings just for records.
 
 This page is view only. If you find something strange, please double-check your trips.
+
+### Radar
+A live nearby aircraft radar powered by real-time [ADS-B](https://en.wikipedia.org/wiki/Automatic_dependent_surveillance_%E2%80%93_broadcast) data. Set your location (or use **Locate Me** for GPS), pick a range up to 50 NM, and hit **Scan** to see all aircraft overhead plotted on an interactive [Leaflet](https://leafletjs.com/) map. Each aircraft shows a popup with callsign, altitude, ground speed, heading, and distance. You can drag the center marker or pan the map to change the scan origin.
+
+Flight data comes from [adsb.lol](https://adsb.lol/) and [adsb.fi](https://adsb.fi/) as a fallback. Because these sources have CORS restrictions in the browser, a **Cloudflare Worker** proxy (`worker/worker.js`) sits in between — it handles CORS, enriches each flight with route data from [ADSBDB](https://www.adsbdb.com/), and provides a stale-cache fallback when upstream sources are slow.
+
+After scanning, **Flightwall Slides** enters a full-screen screensaver mode: airline flights cycle as LED-style departure-board cards in [Departure Mono](https://departuremono.com/) font (SIL OFL, self-hosted), showing callsign, route, aircraft type, altitude, speed, heading, and distance. The current location label on each card is reverse-geocoded from [Nominatim](https://nominatim.openstreetmap.org/) (OpenStreetMap). The screensaver triggers automatically after 15 s of inactivity if flights are in range.
 
 
 ## Data
