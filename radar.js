@@ -16,8 +16,9 @@
     },
   ];
   const RADAR_IDLE_MS = 15000;
-  const RADAR_SLIDESHOW_MS = 5000;
-  const RADAR_MAP_PROMPT_MS = 10000;
+  const RADAR_SLIDESHOW_MS = 3000;
+  const RADAR_MAP_PROMPT_MS = 3000;
+  const ADSB_FETCH_TIMEOUT_MS = 12000;
 
   const state = {
     initialized: false,
@@ -37,6 +38,7 @@
     slideshowTimer: null,
     showMapPromptTimer: null,
     slideshowIndex: 0,
+    locationLabel: "",
     cardsPanelVisible: false,
   };
 
@@ -95,6 +97,12 @@
       return "Unknown Airline";
     }
     return airlineDataMap.get(icao).name || "Unknown Airline";
+  }
+
+  function hasAirlineLogo(f) {
+    return !!(f.airlineIcao &&
+      typeof airlineDataMap !== "undefined" &&
+      airlineDataMap.has(f.airlineIcao));
   }
 
   function getAirlineLogoPath(icao) {
@@ -208,7 +216,7 @@
     if (!state.hasScanResponse) {
       setCardsPanelVisible(false);
     }
-    setStatus(reason + " Press Scan to refresh flights.", "warn");
+    setStatus("Map updated \u2014 scan to refresh.", "warn");
   }
 
   function getDistanceNm(lat1, lon1, lat2, lon2) {
@@ -255,54 +263,57 @@
     });
   }
 
-  async function fetchJsonOrThrow(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error("HTTP " + response.status);
+  async function fetchJsonWithTimeout(url) {
+    const controller = new AbortController();
+    const timer = setTimeout(function () { controller.abort(); }, ADSB_FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+      }
+      return response.json();
+    } catch (err) {
+      if (err.name === "AbortError") {
+        throw new Error("timeout");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
     }
-    return response.json();
   }
 
   async function fetchAdsbPayload(lat, lon, dist) {
-    const errors = [];
-
-    // First choice: Worker proxy (best for CORS stability in browser).
     const proxyUrl =
       ADSB_PROXY_URL +
-      "?lat=" +
-      encodeURIComponent(lat) +
-      "&lon=" +
-      encodeURIComponent(lon) +
-      "&dist=" +
-      encodeURIComponent(dist);
-    try {
-      const payload = await fetchJsonOrThrow(proxyUrl);
-      return {
-        payload: payload,
-        source: payload.source || "airlog-worker",
-      };
-    } catch (err) {
-      errors.push("worker:" + (err && err.message ? err.message : "fetch_failed"));
-    }
+      "?lat=" + encodeURIComponent(lat) +
+      "&lon=" + encodeURIComponent(lon) +
+      "&dist=" + encodeURIComponent(dist);
 
-    // Fallbacks: direct providers (may be blocked by browser CORS on some networks).
-    for (let i = 0; i < ADSB_DIRECT_ENDPOINTS.length; i++) {
-      const provider = ADSB_DIRECT_ENDPOINTS[i];
-      const url = provider.buildUrl(lat, lon, dist);
+    // Try worker proxy; retry once on transient failure before falling back.
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const payload = await fetchJsonOrThrow(url);
-        return {
-          payload: payload,
-          source: provider.name,
-        };
+        const payload = await fetchJsonWithTimeout(proxyUrl);
+        return { payload: payload, source: payload.source || "worker" };
       } catch (err) {
-        errors.push(
-          provider.name + ":" + (err && err.message ? err.message : "fetch_failed")
-        );
+        console.warn("WARN: worker attempt " + (attempt + 1) + " failed:", err.message);
+        if (attempt === 0) {
+          await new Promise(function (r) { setTimeout(r, 500); });
+        }
       }
     }
 
-    throw new Error("All providers failed (" + errors.join(" | ") + ")");
+    // Direct provider fallbacks (may be blocked by CORS in browser).
+    for (let i = 0; i < ADSB_DIRECT_ENDPOINTS.length; i++) {
+      const provider = ADSB_DIRECT_ENDPOINTS[i];
+      try {
+        const payload = await fetchJsonWithTimeout(provider.buildUrl(lat, lon, dist));
+        return { payload: payload, source: provider.name };
+      } catch (err) {
+        console.warn("WARN: " + provider.name + " failed:", err.message);
+      }
+    }
+
+    throw new Error("unavailable");
   }
 
   function selectFlight(hex) {
@@ -365,23 +376,26 @@
     els.layout.classList.remove("radar-screensaver");
     renderCards();
     if (state.map) {
-      state.map.invalidateSize();
+      // Delay past the 0.35s grid column CSS transition so Leaflet
+      // measures the correct expanded container width.
+      setTimeout(function () { state.map.invalidateSize(); }, 380);
     }
   }
 
   function startSlideshowTimer() {
     clearSlideshowTimer();
     state.slideshowTimer = setInterval(function () {
-      if (!state.screensaverMode || state.flights.length < 2) {
-        return;
-      }
-      state.slideshowIndex = (state.slideshowIndex + 1) % state.flights.length;
+      if (!state.screensaverMode) return;
+      var slides = state.flights.filter(hasAirlineLogo);
+      if (slides.length < 2) return;
+      state.slideshowIndex = (state.slideshowIndex + 1) % slides.length;
       renderCards();
     }, RADAR_SLIDESHOW_MS);
   }
 
   function enterScreensaverMode() {
-    if (state.screensaverMode || !state.hasScanResponse || state.flights.length < 1) {
+    var slides = state.flights.filter(hasAirlineLogo);
+    if (state.screensaverMode || !state.hasScanResponse || slides.length < 1) {
       return;
     }
     setCardsPanelVisible(true);
@@ -469,6 +483,9 @@
   }
 
   function getSlideshowCardHtml(f) {
+    const locationHtml = '<div class="radar-led-location">@ ' +
+      escapeHtml(state.locationLabel || '\u00b7\u00b7\u00b7') + '</div>';
+
     const logoHtml = f.airlineIcao
       ? '<img class="radar-airline-logo" src="' +
         getAirlineLogoPath(f.airlineIcao) +
@@ -481,6 +498,7 @@
 
     return (
       '<article class="radar-led-card" data-hex="' + escapeHtml(f.hex) + '">' +
+      locationHtml +
       '<div class="radar-led-upper">' +
         '<div class="radar-led-logo-col">' + logoHtml + '</div>' +
         '<div class="radar-led-info-col">' +
@@ -500,19 +518,27 @@
   }
 
   function renderCards() {
+    var slides = state.flights.filter(hasAirlineLogo);
+    els.slideshowWrapper.style.display =
+      (state.hasScanResponse && slides.length > 0 && !state.screensaverMode) ? "flex" : "none";
+
     if (!state.flights.length) {
       els.cards.innerHTML = '<p class="radar-empty">No flights in range.</p>';
       return;
     }
 
     if (state.screensaverMode) {
-      const idx = state.slideshowIndex % state.flights.length;
-      const current = state.flights[idx];
+      if (!slides.length) {
+        els.cards.innerHTML = '<p class="radar-empty">No airline flights in range.</p>';
+        return;
+      }
+      const idx = state.slideshowIndex % slides.length;
+      const current = slides[idx];
       const progress =
         '<div class="radar-slideshow-progress">Flight ' +
         (idx + 1) +
         " / " +
-        state.flights.length +
+        slides.length +
         "</div>";
       els.cards.innerHTML =
         '<div class="radar-slideshow-card">' + getSlideshowCardHtml(current) + progress + "</div>";
@@ -612,25 +638,16 @@
       });
       state.hasScanResponse = true;
       state.slideshowIndex = 0;
+      fetchLocationLabel(state.center.lat, state.center.lon);
 
       renderMapFlights();
       renderCards();
       setCardsPanelVisible(true);
 
       if (payload.stale) {
-        setStatus(
-          "Flights: " +
-            state.flights.length +
-            " | Source: " +
-            result.source +
-            " (stale snapshot)",
-          "warn"
-        );
+        setStatus(state.flights.length + " flights (cached data)", "warn");
       } else {
-        setStatus(
-          "Flights: " + state.flights.length + " | Source: " + result.source,
-          "info"
-        );
+        setStatus(state.flights.length + " flights in range", "info");
       }
       resetIdleModeTimer();
     } catch (err) {
@@ -641,11 +658,7 @@
       if (!state.hasScanResponse) {
         setCardsPanelVisible(false);
       }
-      setStatus(
-        "Scan failed: " + err.message +
-          ". If worker endpoint is new, deploy worker changes first.",
-        "error"
-      );
+      setStatus("Scan failed. Please try again.", "error");
       clearIdleTimer();
     }
   }
@@ -666,6 +679,7 @@
         updateMapGeometry();
         state.map.setView([state.center.lat, state.center.lon], 9);
         markDirty("Current location updated.");
+        fetchLocationLabel(state.center.lat, state.center.lon);
       },
       function (error) {
         setStatus("Location denied/unavailable: " + error.message, "error");
@@ -677,10 +691,82 @@
     );
   }
 
+  async function fetchLocationLabel(lat, lon) {
+    try {
+      const url = "https://nominatim.openstreetmap.org/reverse" +
+        "?lat=" + encodeURIComponent(lat.toFixed(5)) +
+        "&lon=" + encodeURIComponent(lon.toFixed(5)) +
+        "&format=json&zoom=10&addressdetails=1";
+      const controller = new AbortController();
+      const timer = setTimeout(function () { controller.abort(); }, 5000);
+      let resp;
+      try {
+        resp = await fetch(url, { signal: controller.signal, headers: { "Accept-Language": "en" } });
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!resp.ok) {
+        console.warn("Geocoding HTTP error:", resp.status);
+        return;
+      }
+      const data = await resp.json();
+      const a = data.address || {};
+      const city = a.city || a.town || a.municipality || a.village || a.county || "";
+      let region = "";
+      if (a.country_code === "us") {
+        const sub = a["ISO3166-2-lvl4"] || "";
+        region = sub.split("-")[1] || "US";
+      } else {
+        region = (a.country_code || "").toUpperCase();
+      }
+      const label = city && region
+        ? city.toUpperCase() + ", " + region
+        : (city || region).toUpperCase();
+      if (label) state.locationLabel = label;
+    } catch (err) {
+      console.warn("Geocoding error:", err);
+    }
+  }
+
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+
+  function requestFullscreen(el) {
+    if (el.requestFullscreen) return el.requestFullscreen();
+    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
+  }
+
+  function exitFullscreen() {
+    if (!isFullscreen()) return;
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }
+
+  function syncFullscreenIcon() {
+    var fs = isFullscreen();
+    els.fullscreenButton.textContent = fs ? "\u2715" : "\u26F6";
+    els.fullscreenButton.title = fs ? "Exit fullscreen" : "Toggle fullscreen";
+    els.layout.classList.toggle("radar-in-fullscreen", fs);
+  }
+
   function bindEvents() {
     els.scanButton.addEventListener("click", scanFlights);
+    els.fullscreenButton.addEventListener("click", function () {
+      if (isFullscreen()) {
+        exitFullscreen();
+      } else {
+        requestFullscreen(document.documentElement);
+      }
+    });
+    document.addEventListener("fullscreenchange", syncFullscreenIcon);
+    document.addEventListener("webkitfullscreenchange", syncFullscreenIcon);
+
+    els.slideshowButton.addEventListener("click", enterScreensaverMode);
+
     els.showMapButton.addEventListener("click", function () {
       exitScreensaverMode();
+      exitFullscreen();
       resetIdleModeTimer();
     });
 
@@ -700,9 +786,12 @@
     });
 
     els.layout.addEventListener("mousemove", onMapRefocus);
-    els.layout.addEventListener("mouseenter", onMapRefocus);
+    els.layout.addEventListener("mouseenter", function () {
+      if (!state.screensaverMode) resetIdleModeTimer();
+    });
 
     state.map.on("moveend", function () {
+      if (state.screensaverMode) return;
       const c = state.map.getCenter();
       state.center = { lat: c.lat, lon: c.lng };
       updateMapGeometry();
@@ -711,6 +800,7 @@
     });
 
     state.centerMarker.on("dragend", function () {
+      if (state.screensaverMode) return;
       const ll = state.centerMarker.getLatLng();
       state.center = { lat: ll.lat, lon: ll.lng };
       updateMapGeometry();
@@ -726,9 +816,12 @@
     els.rangeInput = document.getElementById("radarRangeInput");
     els.rangeLabel = document.getElementById("radarRangeLabel");
     els.cards = document.getElementById("radarCards");
+    els.slideshowButton = document.getElementById("radarSlideshowButton");
+    els.slideshowWrapper = document.getElementById("radarSlideshowWrapper");
     els.layout = document.getElementById("radarLayout");
     els.mapPanel = document.getElementById("radarMapPanel");
     els.showMapButton = document.getElementById("radarShowMapButton");
+    els.fullscreenButton = document.getElementById("radarFullscreenButton");
   }
 
   function initMap() {

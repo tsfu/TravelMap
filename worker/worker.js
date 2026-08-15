@@ -21,7 +21,7 @@ const FLIGHT_CACHE_TTL = 86400; // 24h
 const ADSB_CACHE_TTL = 20; // seconds
 const ADSB_STALE_CACHE_TTL = 300; // 5 minutes
 const ADSB_ROUTE_CACHE_TTL = 600; // 10 minutes
-const ADSBDB_LOOKUP_CAP = 45; // cap route lookups per scan
+const ADSBDB_LOOKUP_CAP = 20; // cap route lookups per scan
 
 // -----------------------------------------------------------------------------
 // Entry point and request routing
@@ -209,9 +209,17 @@ async function handleRadarAdsbRequest(url, cors, ctx) {
 
   for (const upstream of upstreams) {
     try {
-      const response = await fetch(upstream.url, {
-        headers: { Accept: "application/json" },
-      });
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 5000);
+      let response;
+      try {
+        response = await fetch(upstream.url, {
+          headers: { Accept: "application/json" },
+          signal: ac.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
 
       if (!response.ok) {
         lastErr = `${upstream.source}:http_${response.status}`;
@@ -342,12 +350,20 @@ async function getRouteByCallsignCached(callsign, cache, origin, ctx) {
 
   let route = null;
   try {
-    const response = await fetch(
-      `https://api.adsbdb.com/v0/callsign/${encodeURIComponent(callsign)}`,
-      {
-        headers: { Accept: "application/json" },
-      }
-    );
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 2500);
+    let response;
+    try {
+      response = await fetch(
+        `https://api.adsbdb.com/v0/callsign/${encodeURIComponent(callsign)}`,
+        {
+          headers: { Accept: "application/json" },
+          signal: ac.signal,
+        }
+      );
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (response.ok) {
       const payload = await response.json();

@@ -44,8 +44,6 @@
 #radarMap {
     position: absolute;
     inset: 0;
-    height: 100%;
-    width: 100%;
 }
 
 #radarLayout.radar-screensaver #radarMapPanel {
@@ -71,17 +69,57 @@
 }
 
 #radarScanButton,
-#radarLocateButton {
+#radarLocateButton,
+#radarSlideshowButton {
     background: #f49f0a;
     color: #1f2630;
     font-weight: 700;
     height: var(--radar-control-height);
     padding: 0 16px;
     border-radius: 8px;
+    border: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     line-height: 1;
+    cursor: pointer;
+}
+
+/* --- Fullscreen toggle button (absolute overlay, top-right of layout) --- */
+
+#radarFullscreenButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 600;
+    background: rgba(7, 27, 38, 0.75);
+    color: #eef9ff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    height: 32px;
+    width: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, opacity 0.2s ease;
+}
+
+#radarFullscreenButton:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+/* In fullscreen: hide until hover over the layout */
+#radarLayout.radar-in-fullscreen #radarFullscreenButton {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#radarLayout.radar-in-fullscreen:hover #radarFullscreenButton {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 #radarStatus {
@@ -121,7 +159,6 @@
 }
 
 #radarFloatingControls #radarRangeRow label {
-    color: #1f2630;
     font-weight: 700;
     margin: 0;
 }
@@ -135,7 +172,6 @@
 #radarRangeLabel {
     min-width: 64px;
     font-weight: 700;
-    color: #1f2630;
     font-size: 13px;
 }
 
@@ -173,6 +209,27 @@
     transition: transform 0.25s ease, opacity 0.25s ease, visibility 0s linear 0s;
 }
 
+/* --- Flightwall Slides button --- */
+
+#radarSlideshowWrapper {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 8px 14px;
+    flex-shrink: 0;
+}
+
+#radarSlideshowWrapper p {
+    margin: 6px 0 0;
+    font-size: 11px;
+    color: #5f7179;
+    text-align: center;
+}
+
+#radarSlideshowButton:hover {
+    background: #e08f00;
+}
+
 /* --- Cards sidebar --- */
 
 #radarSidebar {
@@ -197,7 +254,9 @@
 }
 
 #radarLayout.radar-screensaver #radarSidebar {
-    grid-column: 1 / -1;
+    position: fixed;
+    inset: 0;
+    z-index: 500;
     border-left: none;
     padding: 20px;
     background: #000000;
@@ -207,14 +266,15 @@
     visibility: visible;
 }
 
+#radarLayout.radar-screensaver #radarFullscreenButton {
+    position: fixed;
+    z-index: 501;
+}
+
 #radarLayout.radar-screensaver #radarCards {
     margin-top: 0;
     padding-right: 0;
     height: 100%;
-}
-
-#radarLayout.radar-screensaver .radar-slideshow-card {
-    min-height: 100%;
 }
 
 #radarCards {
@@ -329,18 +389,30 @@
 /* --- 16:9 LED screensaver card --- */
 
 .radar-led-card {
+    position: relative;
     width: min(92vw, calc((100vh - 100px) * 16 / 9));
     aspect-ratio: 16 / 9;
     background: #000000;
     color: #ffffff;
     border: 2px solid rgba(255, 255, 255, 0.85);
     box-shadow: 0 0 40px rgba(255, 255, 255, 0.08), inset 0 0 30px rgba(255, 255, 255, 0.03);
-    font-family: "VT323", "Courier New", monospace;
+    font-family: "Departure Mono", monospace;
     letter-spacing: 1px;
     display: flex;
     flex-direction: column;
     animation: radarCardFade 0.35s ease;
     cursor: pointer;
+}
+
+.radar-led-location {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    font-size: clamp(28px, 5vh, 48px);
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 2px;
+    pointer-events: none;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
 }
 
 .radar-led-upper {
@@ -391,31 +463,26 @@
     padding: 10px 20px;
     gap: 6px;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.radar-led-callsign,
+.radar-led-route,
+.radar-led-aircraft {
+    font-size: clamp(31px, 13vh, 110px);
+    line-height: 1.05;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .radar-led-callsign {
-    font-size: clamp(34px, 14vh, 120px);
-    color: #ffffff;
     text-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
-    line-height: 1.05;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .radar-led-route {
-    font-size: clamp(34px, 14vh, 120px);
     color: #f49f0a;
-    line-height: 1.05;
-}
-
-.radar-led-aircraft {
-    font-size: clamp(34px, 14vh, 120px);
-    color: #ffffff;
-    line-height: 1.05;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .radar-led-lower {
@@ -431,8 +498,10 @@
     display: flex;
     align-items: baseline;
     gap: 10px;
-    font-size: clamp(34px, 16vh, 132px);
+    font-size: clamp(22px, 11vh, 88px);
     line-height: 1.05;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .radar-led-metric span {
@@ -442,7 +511,6 @@
 }
 
 .radar-led-metric b {
-    color: #ffffff;
     font-weight: 400;
 }
 
