@@ -1,5 +1,14 @@
 # AirLog Changelog
 
+## [1.5.0] - 2026.08.15
+
+#### Added
+- **Radar tab**: live ADS-B radar showing nearby aircraft on an interactive Leaflet map with draggable center marker and adjustable range (0–50 NM).
+- Cloudflare Worker ADS-B proxy (`worker/worker.js`): CORS handling, route enrichment via ADSBDB, stale-cache fallback (up to 5 min), and 5s upstream timeouts.
+- Flightwall Slides screensaver: full-screen LED departure-board cards cycling through nearby airline flights showing callsign, route, aircraft type, altitude, speed, heading, and distance.
+- Self-hosted [Departure Mono](https://departuremono.com/) font (SIL OFL) for slide card display.
+- Nominatim reverse-geocoding for the radar's current city/region label on slide cards.
+
 ## [1.4.1] - 2026.08.04
 #### Fixed
 - Update geotz lib to fix timezone-duration calculation
