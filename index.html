@@ -26,7 +26,28 @@
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=VT323&display=swap"
+    />
+    <style>
+      @font-face {
+        font-family: 'Departure Mono';
+        src: url('./assets/DepartureMono-Regular.woff2') format('woff2');
+        font-weight: normal;
+        font-style: normal;
+        font-display: swap;
+      }
+    </style>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
     <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="radar.css" />
   </head>
   <body>
     <!-- Nav Bar -->
@@ -40,6 +61,9 @@
       >
       <a href="#" class="tab-link" onclick="openTab(event, 'travel-stats')"
         >Stats</a
+      >
+      <a href="#" class="tab-link" onclick="openTab(event, 'radar-view')"
+        >Radar</a
       >
       <a href="https://github.com/tsfu/TravelMap" class="tab-link-ex">About</a>
     </div>
@@ -247,6 +271,37 @@
       <datalist id="aircraftICAO"></datalist>
     </div>
 
+    <!-- Radar Content -->
+    <div id="radar-view" class="tab-content">
+      <div id="radarLayout">
+        <div id="radarMapPanel">
+          <div id="radarToolbar">
+            <button id="radarScanButton" type="button">Scan</button>
+            <span id="radarStatus">Set location and range, then scan.</span>
+          </div>
+          <div id="radarFloatingControls">
+            <button id="radarLocateButton" type="button">Locate Me</button>
+            <div id="radarRangeRow">
+              <label for="radarRangeInput">Range</label>
+              <input type="range" id="radarRangeInput" min="0" max="50" step="1" value="10" />
+              <span id="radarRangeLabel">10 NM</span>
+            </div>
+          </div>
+          <div id="radarMap"></div>
+        </div>
+
+        <aside id="radarSidebar">
+          <div id="radarSlideshowWrapper">
+            <button id="radarSlideshowButton" type="button">Flightwall Slides</button>
+            <p>View all nearby flights in slides</p>
+          </div>
+          <div id="radarCards"></div>
+          <button id="radarShowMapButton" type="button">Show Map</button>
+        </aside>
+        <button id="radarFullscreenButton" type="button" title="Toggle fullscreen">&#x26F6;</button>
+      </div>
+    </div>
+
     <!-- Travel Stats Content -->
     <div id="travel-stats" class="tab-content">
       <h1 id="travelStatsTitle">Travel Summary</h1>
@@ -448,9 +503,16 @@
       crossorigin="anonymous"
       referrerpolicy="no-referrer"
     ></script>
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
     <script src="utils.js"></script>
     <script src="table.js"></script>
     <script src="stats.js"></script>
     <script src="main.js"></script>
+    <script src="radar.js"></script>
   </body>
 </html>
